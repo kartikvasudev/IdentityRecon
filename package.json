@@ -1,0 +1,23 @@
+{
+  "name": "identityrecon_bitespeed",
+  "version": "1.0.0",
+  "description": "Identity Reconciliation Application",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest "
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/kartikvasudev/IdentityRecon.git"
+  },
+  "keywords": [
+    "Node.js",
+    "MySQL"
+  ],
+  "author": "Kartik Vasudev",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kartikvasudev/IdentityRecon/issues"
+  },
+  "homepage": "https://github.com/kartikvasudev/IdentityRecon#readme"
+}
