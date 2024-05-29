@@ -19,5 +19,12 @@
   "bugs": {
     "url": "https://github.com/kartikvasudev/IdentityRecon/issues"
   },
-  "homepage": "https://github.com/kartikvasudev/IdentityRecon#readme"
+  "homepage": "https://github.com/kartikvasudev/IdentityRecon#readme",
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "joi": "^17.13.1",
+    "mysql": "^2.18.1"
+  }
 }
