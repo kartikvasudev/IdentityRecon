@@ -10,7 +10,7 @@ async function createContact(email, phoneNumber, linkPrecedence = "primary", lin
                 phoneNumber: phoneNumber,
                 email: email,
                 linkPrecedence: linkPrecedence,
-                linkedId: linkedId
+                linkedId: linkedId ? linkedId: null
             }
         })
     } catch (error) {
@@ -26,13 +26,13 @@ async function findContactsOptimized(email, phoneNumber){
             OR: [
                 {
                     email: email,
-                    phoneNumber: phoneNumber
+                    phoneNumber: phoneNumber,
                 },
                 {
-                    email: email
+                    email: email,
                 },
                 {
-                    phoneNumber: phoneNumber
+                    phoneNumber: phoneNumber,
                 }
             ]
         },
@@ -42,57 +42,79 @@ async function findContactsOptimized(email, phoneNumber){
     return contacts;
 }
 
-async function findContacts(email, phoneNumber){
-    let contacts = []
-    if(email && phoneNumber){
-        let combinedContacts = await prisma.Contact.findMany({
-            where: {
-                email: email,
-                phoneNumber: phoneNumber
-            },
+async function updateUsersToSecondary(ids, linkedId){
+    let OR = []
+    ids.forEach((id) => {
+        OR.push({
+            id: id
         })
-        if(combinedContacts.length != 0)
-        contacts.push(...combinedContacts)
-    } 
-    if(email){
-        let emailContacts = await prisma.Contact.findMany({
-            where: {
-                email: email,
+    })
+    await prisma.Contact.updateMany({
+        where: {
+            OR: OR
+        }, 
+        data: {
+            linkPrecedence: "secondary",
+            linkedId: linkedId
+        }
+    })
+}
+
+async function findContactsByIds(ids){
+    let OR = []
+    ids.forEach((id) => {
+        OR.push(
+            {
+                linkedId: id
             },
-        }) 
-        if(emailContacts.length != 0)
-        contacts.push(...emailContacts)
-    }
-    if(phoneNumber){
-        let phoneContacts = await prisma.Contact.findMany({
-            where: {
-                phoneNumber: phoneNumber
-            },
-        }) 
-        if(phoneContacts.length != 0)
-        contacts.push(...phoneContacts)
-    }
+            {
+                id: id
+            }
+        )
+    })
+    let contacts = await prisma.Contact.findMany({
+        where: {
+            OR: OR
+        },
+    })
     return contacts;
 }
 
 module.exports =  (async (req, res, next) => {
     let {email, phoneNumber} = req.body;
+    phoneNumber = phoneNumber ? String(phoneNumber): null
     let linkedId, linkPrecedence;
-    let contacts = await findContacts(email, phoneNumber);
-    let contactsOptimized = await findContactsOptimized(email, phoneNumber)
-    console.log("contacts optimized are ", contactsOptimized)
-    console.log("contacts are ", contacts)
-    let uniqContactMap = new Map();
-    let uniqContacts = []
+    let contacts = await findContactsOptimized(email, phoneNumber)
+    console.log("findContactsOptimized ", contacts)
+    let linkedIds = new Set()
+    let minPrimaryId = Number.MAX_SAFE_INTEGER;
     contacts.forEach((contact) => {
-        if(!uniqContactMap.get(contact.id)){
-            uniqContacts.push(contact)
-            uniqContactMap.set(contact.id, contact)
+        if(contact.linkPrecedence == "primary"){
+            minPrimaryId = Math.min(contact.id, minPrimaryId)
+            linkedIds.add(contact.id)
+        }else{
+            linkedIds.add(contact.linkedId)
         }
     })
-    contacts = uniqContacts
-    
-    // console.log("uniq contacts are ", contacts)
+    linkedIds = [...linkedIds]
+    console.log(linkedIds)
+    console.log(minPrimaryId)
+    if(linkedIds.length > 1){
+        console.log("Converting records from primary to secondary ")
+        // we need to convert primary users to secondary users
+        let updateIds = linkedIds.filter((id) => id != minPrimaryId)
+        contacts.filter((contact) => {
+            if(updateIds.includes(contact.id))
+            return false;
+            return true;
+        })
+        //this will update the users to be secondary and their linkedId to minPrimaryId
+        await updateUsersToSecondary(updateIds, minPrimaryId)
+    }
+    let secondaryContacts = await findContactsByIds(linkedIds)
+    console.log("secondaryContacts ", secondaryContacts )
+    contacts.push(...secondaryContacts)
+    console.log("all contacts ", contacts )
 
     req.contacts = contacts
     
@@ -121,7 +143,6 @@ module.exports =  (async (req, res, next) => {
     }
 
     if(createNewContact){
-        console.log("creating contact with ", email, phoneNumber, linkPrecedence)
         let newContact;
         try {
             newContact = await createContact(email, phoneNumber, linkPrecedence, linkedId);   
@@ -135,38 +156,36 @@ module.exports =  (async (req, res, next) => {
   
     const pnoSet = new Set();
     const emailSet = new Set();
+    const secondaryIdSet = new Set();
+    let primaryEmail, primaryId, primaryPno;
 
     req.contacts.forEach((contact) => {
         if(contact.linkPrecedence === "primary")
         {
-            if(emailSet.has(contact.email)){
-                req.response.contact.emails.filter((email) => {
-                    if(email === contact.email)
-                    return false;
-                    return true;
-                })
-            }
-            if(pnoSet.has(contact.phoneNumber)){
-                req.response.contact.phoneNumbers.filter((pno) => {
-                    if(pno === contact.phoneNumber)
-                    return false;
-                    return true;
-                })
-            }
-            req.response.contact.primaryContactId = contact.id
+            primaryId = contact.id
             if(contact.email)
-            req.response.contact.emails.unshift(contact.email)
+            primaryEmail = contact.email
             if(contact.phoneNumber)
-            req.response.contact.phoneNumbers.unshift(contact.phoneNumber)
+            primaryPno = contact.phoneNumber
         }else{
-            if(!emailSet.has(contact.email) && contact.email)
-            req.response.contact.emails.push(contact.email)
-            if(!pnoSet.has(contact.phoneNumber) && contact.phoneNumber)
-            req.response.contact.phoneNumbers.push(contact.phoneNumber)
-            req.response.contact.secondaryContactIds.push(contact.id)
+            secondaryIdSet.add(contact.id)
         }
+        if(contact.email)
         emailSet.add(contact.email)
+        if(contact.phoneNumber)
         pnoSet.add(contact.phoneNumber)
     })
+    req.response.contact.primaryContactId = primaryId
+    if(primaryEmail)
+    req.response.contact.emails.push(primaryEmail)
+    if(primaryPno)
+    req.response.contact.phoneNumbers.push(primaryPno)
+    emailSet.delete(primaryEmail)
+    pnoSet.delete(primaryPno)
+
+    req.response.contact.emails.push(...emailSet)
+    req.response.contact.phoneNumbers.push(...pnoSet)
+    req.response.contact.secondaryContactIds.push(...secondaryIdSet)
+    
     return res.status(200).send({contact: req.response.contact})
 })
