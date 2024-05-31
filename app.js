@@ -7,7 +7,6 @@ app.use(express.json())
 
 app.use('/', routes);
 
-app.listen(3000, "0.0.0.0", () => {
-  
+app.listen(process.env.PORT, "0.0.0.0", () => {
     console.log("Application started on 3000")
 });
