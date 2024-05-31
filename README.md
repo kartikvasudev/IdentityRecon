@@ -1,7 +1,6 @@
 IdentityRecon is a backend application built using NodeJs which seeks to reconcile the identify of duplicate users. 
 
 Real world example - 
-
 Suppose a ecommerce website sells a product and allows users to create an account using either email or phone or both. 
 Since there can be multiple users which can create an account on this website using multiple email address and phone numbers. 
 If the website decides to keep track of user identity, it will be able to do so using IdentityRecon. It uses a MySQL database to create a Contact table having schema-
@@ -45,7 +44,7 @@ Sample Response Body -
 }
 
 Sample Curl: 
-curl -XPOST -H "Content-Type: application/json" -d '{"email":"yt@edu", "phoneNumber":123456}' http://identityrecon-production.up.railway.app/identify
+curl -XPOST -H "Content-Type: application/json" -d '{"email":"yt@edu", "phoneNumber":123456}' https://identityrecon-production.up.railway.app/identify
 
 
 
