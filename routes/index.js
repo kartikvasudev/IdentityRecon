@@ -7,6 +7,14 @@ let errorHandler = ((err, req, res, next) => {
     })
 })
 
+const logger = (req, res, next) => { 
+    console.log(` ${req.method}  ${req.url} ${req.ip} ${JSON.stringify(req.body)}`); 
+    next(); 
+};
+
+Router.use(logger)
+ 
+
 Router.get("/health", (req, res, next) => {
     return res.status(200).send("OK");
 })
